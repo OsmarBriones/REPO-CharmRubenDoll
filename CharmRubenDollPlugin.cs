@@ -36,6 +36,7 @@ namespace CharmRubenDoll
 				"Comma-separated prefab names of the valuables that count as art. Matched ignoring case and spaces around the names. Read once when the game starts (restart to apply); only the host's list is used.").Value;
 
 			PatronOfArt patron = new PatronOfArt(charm, ArtRules.ParseNames(artisticList));
+			charm.Patron = patron;
 			CharmsApi.OnWearing(patron.OnWearing);
 
 			Logger.LogInfo($"{PluginName} {PluginVersion} loaded!");

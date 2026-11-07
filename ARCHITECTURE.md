@@ -49,3 +49,12 @@ Provided by CharmCore: the `Debug.DebugMode` setting (off by default) places the
 - The artistic list is not synchronised; the host's file decides.
 - The doll pays the full `WearPercent` for each protected step, even when the protected loss was small.
 - Not verified in game: that the wear handler fires for every charm's wear in a real session, multiplayer behaviour, and interaction with other charms' wear (see the QA battery).
+
+## Runtime hygiene
+Checked against `RepoKit/references/runtime-hygiene.md`:
+1. Lifetime of references: fixed. The handler now keeps a small cache `instance id -> is protectable art` (ints only, no game objects, capped at 512 entries). `RubenDollCharm` overrides `OnLevelEnded` and clears it through `Patron.ClearCache()`. No static field holds a game object.
+2. Work frequency: ok. Event-driven (the wear handler); no per-frame code of our own.
+3. Allocations: fixed. The wear handler runs for every wear step of every charm. Before, it built a cleaned name string on each call and could call `CarriedBy` (which allocates a list and clones the pocket array). Now the order is: charm enabled, valuable and carrier present, cached art/doll classification (a dictionary lookup, no allocation after the first sight of a valuable), and only then `CarriedBy`. Non-art valuables, the doll itself and a disabled charm exit without allocating. The debug line is guarded with `if (charm.DebugMode)`. Limit: for a listed art valuable the doll lookup still allocates, because CharmCore offers no cheap "carries a doll" query; this is one wear step of art, not a per-frame path.
+4. UI: not applicable.
+5. Patches: not applicable (no Harmony patches).
+Not verified in game (build and unit tests only).

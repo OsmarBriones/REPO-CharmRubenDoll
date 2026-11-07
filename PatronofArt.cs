@@ -14,6 +14,8 @@ namespace CharmRubenDoll
 	{
 		private readonly RubenDollCharm charm;
 		private readonly HashSet<string> artisticNames;
+		private readonly Dictionary<int, bool> protectable = new Dictionary<int, bool>();
+		private const int MaxCachedValuables = 512;
 
 		internal PatronOfArt(RubenDollCharm charm, HashSet<string> artisticNames)
 		{
@@ -21,23 +23,28 @@ namespace CharmRubenDoll
 			this.artisticNames = artisticNames;
 		}
 
-		/// <summary>Handler for <see cref="CharmsApi.OnWearing"/>.</summary>
+		/// <summary>Forgets the cached classification of the level's valuables (keyed by instance id, never by object).</summary>
+		internal void ClearCache()
+		{
+			protectable.Clear();
+		}
+
+		/// <summary>Handler for <see cref="CharmsApi.OnWearing"/>. Runs for every wear step of every charm, so the cheap checks come first and nothing is allocated until a protectable valuable is found.</summary>
 		internal void OnWearing(WearContext context)
 		{
 			// The core switch is internal to CharmCore; the charm switch is ours to check.
-			if (!charm.IsEnabled || context.Carrier == null || context.Valuable == null)
+			if (!charm.IsEnabled)
 			{
 				return;
 			}
 
-			string name = ArtRules.CleanName(context.Valuable.gameObject.name);
-
-			// The doll and other dolls are never protected. This also stops recursion: the doll's own wear step has the doll as its valuable.
-			if (string.Equals(name, RubenDollCharm.PrefabName, StringComparison.OrdinalIgnoreCase) || !ArtRules.IsListed(artisticNames, name))
+			ValuableObject? valuable = context.Valuable;
+			if (valuable == null || context.Carrier == null || !IsProtectable(valuable))
 			{
 				return;
 			}
 
+			// Only now the (allocating) pocket lookup, for a valuable that is art.
 			IReadOnlyList<ValuableObject> dolls = CharmsApi.CarriedBy(context.Carrier, charm);
 			if (dolls.Count == 0 || dolls[0] == null)
 			{
@@ -46,8 +53,32 @@ namespace CharmRubenDoll
 
 			float before = context.Loss;
 			context.Loss = ArtRules.ReduceLoss(before, charm.LossReductionPercent.Value);
-			charm.LogDebug($"Patron of Art: {name} loss {before:0} -> {context.Loss:0}; the doll wears {charm.WearPercent:0.#}%");
+			if (charm.DebugMode)
+			{
+				charm.LogDebug($"Patron of Art: {valuable.gameObject.name} loss {before:0} -> {context.Loss:0}; the doll wears {charm.WearPercent:0.#}%");
+			}
+
 			charm.WearValuable(dolls[0], charm.WearPercent);
+		}
+
+		/// <summary>True when the valuable is listed art and not a doll (the doll's own wear step must not recurse). Cached by instance id: the name is read once per valuable.</summary>
+		private bool IsProtectable(ValuableObject valuable)
+		{
+			int id = valuable.GetInstanceID();
+			if (protectable.TryGetValue(id, out bool known))
+			{
+				return known;
+			}
+
+			string name = ArtRules.CleanName(valuable.gameObject.name);
+			bool result = !string.Equals(name, RubenDollCharm.PrefabName, StringComparison.OrdinalIgnoreCase) && ArtRules.IsListed(artisticNames, name);
+			if (protectable.Count >= MaxCachedValuables)
+			{
+				protectable.Clear();
+			}
+
+			protectable[id] = result;
+			return result;
 		}
 	}
 }

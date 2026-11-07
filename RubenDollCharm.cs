@@ -15,5 +15,14 @@ namespace CharmRubenDoll
 
 		/// <summary>Percentage of each wear loss that artistic valuables are spared (0 to 100).</summary>
 		internal CharmSetting LossReductionPercent { get; }
+
+		/// <summary>The wear handler, so the level-end hook can reach its cache.</summary>
+		internal PatronOfArt? Patron { get; set; }
+
+		/// <summary>Drops the per-valuable name cache of the level.</summary>
+		protected override void OnLevelEnded()
+		{
+			Patron?.ClearCache();
+		}
 	}
 }
