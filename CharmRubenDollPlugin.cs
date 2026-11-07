@@ -1,4 +1,5 @@
 using BepInEx;
+using CharmRubenDoll.Domain;
 using CharmCore.Api;
 using UnityEngine;
 
@@ -26,7 +27,16 @@ namespace CharmRubenDoll
 			// Registering binds Enabled, WearPercent, CooldownSeconds and the Debug section (DebugMode) in this mod's config file.
 			RubenDollCharm charm = new RubenDollCharm();
 			CharmsApi.Register(charm, Config);
-			this.gameObject.AddComponent<PatronofArt>().Charm = charm;
+
+			// Read once at startup. Only the host's copy matters: the wear handler runs on the host.
+			string artisticList = Config.Bind(
+				"Charm.RubenDoll",
+				"ArtisticValuables",
+				"Valuable Museum Cool brain, Valuable Museum Fish, Valuable Museum GoldFish, Valuable Museum GoldTooth, Valuable Museum SilverFish, Valuable Museum Toast, Valuable Museum Tooth, Valuable Manor Ocarina",
+				"Comma-separated prefab names of the valuables that count as art. Matched ignoring case and spaces around the names. Read once when the game starts (restart to apply); only the host's list is used.").Value;
+
+			PatronOfArt patron = new PatronOfArt(charm, ArtRules.ParseNames(artisticList));
+			CharmsApi.OnWearing(patron.OnWearing);
 
 			Logger.LogInfo($"{PluginName} {PluginVersion} loaded!");
 		}

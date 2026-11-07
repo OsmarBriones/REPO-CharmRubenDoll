@@ -30,9 +30,16 @@ public class GameContractTests
 	[TestMethod]
 	public void Valuable_HasTheValueFields()
 	{
-		// TODO: add one RequireField / RequireMethod line for every game member this charm's effect reads, writes or patches,
-		// so a game update that renames or removes one fails here with a clear message.
+		// The wear pipeline (CharmCore) lowers these; the handler only compares the object's name, but needs the types to exist.
 		RequireField("ValuableObject", "dollarValueCurrent");
+		RequireField("ValuableObject", "dollarValueOriginal");
+	}
+
+	[TestMethod]
+	public void PlayerAvatar_ExistsAsTheCarrierType()
+	{
+		// WearContext.Carrier is a PlayerAvatar; the charm only passes it to CharmsApi.CarriedBy.
+		RequireField("PlayerAvatar", "photonView");
 	}
 
 	// ---- Helpers ----
